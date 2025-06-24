@@ -61,11 +61,9 @@ async function startServer() {
     await sequelize.authenticate();
     logger.info('Database connection has been established successfully.');
 
-    // Sync database (in development)
-    if (process.env.NODE_ENV === 'development') {
-      await syncDatabase(false); // Use syncDatabase instead of sequelize.sync
-      logger.info('Database synchronized');
-    }
+    // Sync database on every startup
+    await syncDatabase(false); // Use syncDatabase instead of sequelize.sync
+    logger.info('Database synchronized');
 
     app.listen(port, () => {
       logger.info(`Server is running on port ${port}`);

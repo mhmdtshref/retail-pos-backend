@@ -5,10 +5,62 @@ import Customer from '../models/Customer';
 import Item from '../models/Item';
 import ItemVariant from '../models/ItemVariant';
 import ItemMovement, { MovementType, MovementStatus } from '../models/ItemMovement';
+import CashRegister, { CashRegisterStatus } from '../models/CashRegister';
+import CashMovement, { CashMovementType, CashMovementStatus } from '../models/CashMovement';
 import sequelize from '../config/database';
 import { AppError } from '../utils/error';
+import { Op } from 'sequelize';
 
 export class SaleController {
+  // Get sales summary statistics
+  getSummary = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      // Get date range from query parameters (optional)
+      const { startDate, endDate } = req.query;
+      
+      let whereClause: any = {
+        status: SaleStatus.COMPLETED, // Only count completed sales
+      };
+
+      // Add date range filter if provided
+      if (startDate || endDate) {
+        whereClause.createdAt = {};
+        if (startDate) {
+          whereClause.createdAt[Op.gte] = new Date(startDate as string);
+        }
+        if (endDate) {
+          whereClause.createdAt[Op.lte] = new Date(endDate as string);
+        }
+      }
+
+      // Get total sales amount
+      const totalSalesResult = await Sale.findOne({
+        where: whereClause,
+        attributes: [
+          [sequelize.fn('SUM', sequelize.col('final_amount')), 'totalSales'],
+          [sequelize.fn('COUNT', sequelize.col('id')), 'totalOrders'],
+        ],
+        raw: true,
+      }) as any;
+
+      // Calculate values
+      const totalSales = parseFloat(totalSalesResult?.totalSales || '0');
+      const totalOrders = parseInt(totalSalesResult?.totalOrders || '0');
+      const averageOrderValue = totalOrders > 0 ? totalSales / totalOrders : 0;
+
+      res.status(200).json({
+        status: 'success',
+        data: {
+          totalSales,
+          totalOrders,
+          averageOrderValue,
+        },
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
   // Create a new sale
   create = async (req: Request, res: Response, next: NextFunction) => {
     const transaction = await sequelize.transaction();
@@ -137,20 +189,20 @@ export class SaleController {
             }
           }
 
-          const subtotal = quantity * unitPrice;
-          const total = subtotal - itemDiscount + itemTax;
+          const subtotal = Number(quantity) * Number(unitPrice);
+          const total = subtotal - Number(itemDiscount) + Number(itemTax);
 
           totalAmount += subtotal;
-          taxAmount += itemTax;
-          discountAmount += itemDiscount;
+          taxAmount += Number(itemTax);
+          discountAmount += Number(itemDiscount);
 
           return {
             itemId,
             itemVariantId,
             quantity,
             unitPrice,
-            discountAmount: itemDiscount,
-            taxAmount: itemTax,
+            discountAmount: Number(itemDiscount),
+            taxAmount: Number(itemTax),
             subtotal,
             total,
             notes: itemNotes,
@@ -158,7 +210,7 @@ export class SaleController {
         }),
       );
 
-      const finalAmount = totalAmount - discountAmount + taxAmount;
+      const finalAmount = Number(totalAmount) - Number(discountAmount) + Number(taxAmount);
 
       if (!req.auth?.user?.id) {
         throw new AppError('Unauthorized', 401);
@@ -244,6 +296,76 @@ export class SaleController {
           where: { id: finalCustomerId },
           transaction,
         });
+      }
+
+      // Handle cash register integration for cash payments
+      if (paymentMethod === 'CASH' && paymentStatus === 'PAID') {
+        // Find open cash register for this user
+        const cashRegister = await CashRegister.findOne({
+          where: {
+            clerkUserId: req.auth.user.id,
+            status: CashRegisterStatus.OPEN,
+          },
+          transaction,
+        });
+
+        if (cashRegister) {
+          // Get current balance
+          const movements = await CashMovement.findAll({
+            where: {
+              cashRegisterId: cashRegister.id,
+              status: CashMovementStatus.COMPLETED,
+            },
+            transaction,
+          });
+
+          let currentBalance = Number(cashRegister.openingAmount) || 0;
+          movements.forEach((movement) => {
+            const amount = Number(movement.amount) || 0;
+            if (movement.movementType === CashMovementType.SALE || 
+                movement.movementType === CashMovementType.DEPOSIT) {
+              currentBalance += amount;
+            } else if (movement.movementType === CashMovementType.RETURN || 
+                       movement.movementType === CashMovementType.WITHDRAWAL) {
+              currentBalance -= amount;
+            }
+          });
+
+          // Ensure finalAmount is a proper number
+          const cashAmount = parseFloat(finalAmount.toString());
+          if (isNaN(cashAmount)) {
+            throw new AppError('Invalid sale amount for cash movement', 400);
+          }
+
+          const newBalance = currentBalance + cashAmount;
+
+          // Debug logging
+          console.log('Cash Movement Debug:', {
+            finalAmount,
+            cashAmount,
+            currentBalance,
+            newBalance,
+            cashRegisterId: cashRegister.id,
+            clerkUserId: req.auth.user.id
+          });
+
+          // Create cash sale movement
+          await CashMovement.create(
+            {
+              cashRegisterId: cashRegister.id,
+              clerkUserId: req.auth.user.id,
+              movementType: CashMovementType.SALE,
+              status: CashMovementStatus.COMPLETED,
+              amount: parseFloat(cashAmount.toFixed(2)),
+              previousBalance: parseFloat(currentBalance.toFixed(2)),
+              newBalance: parseFloat(newBalance.toFixed(2)),
+              referenceType: 'SALE',
+              referenceId: sale.id,
+              notes: `Cash sale #${sale.id}`,
+            },
+            { transaction },
+          );
+        }
       }
 
       // Commit transaction

@@ -7,6 +7,64 @@ const saleController = new SaleController();
 
 /**
  * @swagger
+ * /sales/summary:
+ *   get:
+ *     summary: Get sales summary statistics
+ *     tags: [Sales]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: startDate
+ *         schema:
+ *           type: string
+ *           format: date
+ *         description: Start date for filtering sales (optional)
+ *       - in: query
+ *         name: endDate
+ *         schema:
+ *           type: string
+ *           format: date
+ *         description: End date for filtering sales (optional)
+ *     responses:
+ *       200:
+ *         description: Sales summary retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: success
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     totalSales:
+ *                       type: number
+ *                       format: float
+ *                       description: Total sales amount
+ *                       example: 1250.75
+ *                     totalOrders:
+ *                       type: integer
+ *                       description: Total number of orders
+ *                       example: 42
+ *                     averageOrderValue:
+ *                       type: number
+ *                       format: float
+ *                       description: Average order value
+ *                       example: 29.78
+ *       401:
+ *         description: Unauthorized
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
+router.get('/summary', requireAuthMiddleware, saleController.getSummary);
+
+/**
+ * @swagger
  * /sales:
  *   post:
  *     summary: Create a new sale

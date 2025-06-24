@@ -8,6 +8,8 @@ import Expense from './Expense';
 import PurchaseOrder from './PurchaseOrder';
 import PurchaseOrderItem from './PurchaseOrderItem';
 import ItemMovement from './ItemMovement';
+import CashRegister from './CashRegister';
+import CashMovement from './CashMovement';
 
 // Define associations after all models are initialized
 export function defineAssociations() {
@@ -52,6 +54,12 @@ export function defineAssociations() {
   ItemMovement.belongsTo(ItemVariant, { foreignKey: 'itemVariantId', as: 'itemVariant' });
   ItemMovement.belongsTo(Sale, { foreignKey: 'saleId', as: 'sale' });
   ItemMovement.belongsTo(PurchaseOrder, { foreignKey: 'purchaseOrderId', as: 'purchaseOrder' });
+
+  // CashRegister Associations
+  CashRegister.hasMany(CashMovement, { foreignKey: 'cashRegisterId', as: 'movements' });
+
+  // CashMovement Associations
+  CashMovement.belongsTo(CashRegister, { foreignKey: 'cashRegisterId', as: 'cashRegister' });
 }
 
 // Export all models
@@ -66,4 +74,6 @@ export {
   PurchaseOrder,
   PurchaseOrderItem,
   ItemMovement,
+  CashRegister,
+  CashMovement,
 };

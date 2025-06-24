@@ -9,6 +9,8 @@ import SaleItem from './SaleItem';
 import Expense from './Expense';
 import ItemMovement from './ItemMovement';
 import PurchaseOrderItem from './PurchaseOrderItem';
+import CashRegister from './CashRegister';
+import CashMovement from './CashMovement';
 
 // Define associations after all models are initialized
 defineAssociations();
@@ -25,6 +27,8 @@ export {
   Expense,
   ItemMovement,
   PurchaseOrderItem,
+  CashRegister,
+  CashMovement,
 };
 
 // Export associations
@@ -44,7 +48,9 @@ export const syncDatabase = async (force = false) => {
       PurchaseOrder, // No dependencies
       PurchaseOrderItem, // Depends on PurchaseOrder, Item, and ItemVariant
       ItemMovement,  // Depends on Item, ItemVariant, Sale, and PurchaseOrder
-      Expense        // No dependencies
+      Expense,       // No dependencies
+      CashRegister,  // No dependencies
+      CashMovement   // Depends on CashRegister
     ];
 
     // Sync tables in order

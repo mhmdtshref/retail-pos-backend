@@ -7,6 +7,7 @@ import docsRoutes from './docs';
 import customerRoutes from './customer.routes';
 import categoryRoutes from './category.routes';
 import uploadRoutes from './upload.routes';
+import cashRegisterRoutes from './cashRegister.routes';
 
 const router = express.Router();
 
@@ -26,5 +27,6 @@ router.use('/items', itemRoutes);
 router.use('/customers', customerRoutes);
 router.use('/categories', categoryRoutes);
 router.use('/upload', uploadRoutes);
+router.use('/cash-register', cashRegisterRoutes);
 
 export default router;
