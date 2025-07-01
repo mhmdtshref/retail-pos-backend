@@ -1,12 +1,12 @@
 import { Model, DataTypes, Optional } from 'sequelize';
 import sequelize from '../config/database';
 import Order from './Order';
-import Product from './Product';
+import Item from './Item';
 
 interface OrderItemAttributes {
   id: string;
   orderId: string;
-  productId: string;
+  itemId: string;
   quantity: number;
   price: number;
   createdAt?: Date;
@@ -21,14 +21,14 @@ class OrderItem
 {
   public id!: string;
   public orderId!: string;
-  public productId!: string;
+  public itemId!: string;
   public quantity!: number;
   public price!: number;
   public readonly createdAt!: Date;
   public readonly updatedAt!: Date;
 
   public readonly order?: Order;
-  public readonly product?: Product;
+  public readonly item?: Item;
 }
 
 OrderItem.init(
@@ -46,11 +46,11 @@ OrderItem.init(
         key: 'id',
       },
     },
-    productId: {
+    itemId: {
       type: DataTypes.UUID,
       allowNull: false,
       references: {
-        model: 'products',
+        model: 'items',
         key: 'id',
       },
     },
